@@ -7,7 +7,7 @@ use crate::{
     execution_context::ExecutionContext,
     loaded::{LoadedAsset, LoadedPart},
     parts::GamePart,
-    renderer::{Renderer, SCALED_H, SCALED_W},
+    renderer::{Renderer, SCALED_H, SCALED_W, SCREEN_H, SCREEN_W},
     resource::{ResourceError, ResourceRegistry},
     sys_event_handler::SysEventHandler,
     video::Video,
@@ -41,7 +41,7 @@ impl Engine {
         let event_loop = EventLoop::new().unwrap();
         let window = WindowBuilder::new()
             .with_title("Another Rusty World")
-            .with_inner_size(winit::dpi::LogicalSize::new(
+            .with_inner_size(winit::dpi::PhysicalSize::new(
                 SCALED_W as u32,
                 SCALED_H as u32,
             ))
@@ -67,6 +67,7 @@ impl Engine {
             Self::update_part(&mut context, &mut vm)?;
             vm.check_channel_requests()?;
             vm.host_frame(&mut context)?;
+            _sys_event_handler.pump_events();
         }
     }
 
@@ -76,7 +77,11 @@ impl Engine {
 
             let loaded_part = context.resource.setup_part(part_id)?;
             if let Some(polygon) = &loaded_part.polygon {
-                context.video.copy_bg(polygon.get_ref());
+                let data = polygon.get_ref();
+                let is_bg_data = data.len() == SCREEN_W * SCREEN_H / 2;
+                if is_bg_data {
+                    context.video.copy_bg(data);
+                }
             }
             context.loaded_part = loaded_part;
             context.loaded_asset = LoadedAsset::default();

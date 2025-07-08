@@ -9,8 +9,8 @@ use thiserror::Error;
 use winit::window::Window;
 
 const SCALE_FACTOR: usize = 3;
-const SCREEN_W: usize = 320;
-const SCREEN_H: usize = 200;
+pub const SCREEN_W: usize = 320;
+pub const SCREEN_H: usize = 200;
 pub const SCALED_H: usize = SCREEN_H * SCALE_FACTOR;
 pub const SCALED_W: usize = SCREEN_W * SCALE_FACTOR;
 const NUM_COLORS: usize = 16;
