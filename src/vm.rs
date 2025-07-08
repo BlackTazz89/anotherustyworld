@@ -452,12 +452,15 @@ impl Vm {
             zoom = 0x40;
         }
 
-        if opcode & 3 == 3 {
+        if opcode & 3 != 3 {
             let cinematic = &mut context.loaded_part.cinematic;
             cinematic.seek(SeekFrom::Start(offset as u64))?;
-            context
-                .video
-                .read_and_draw_polygon(cinematic, 0xFF, zoom, Point { x, y })?
+            return Ok(context.video.read_and_draw_polygon(
+                cinematic,
+                0xFF,
+                zoom,
+                Point { x, y },
+            )?);
         }
 
         if let Some(ref mut polygon) = context.loaded_part.polygon {
