@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::{
     loaded::{LoadedAsset, LoadedPart},
     parts::GamePart,
@@ -11,6 +13,7 @@ pub struct ExecutionContext<'a> {
     pub part_to_load: Option<GamePart>,
     pub resource: &'a mut ResourceRegistry,
     pub video: &'a mut Video,
+    pub last_rendering: Instant,
 }
 
 impl<'a> ExecutionContext<'a> {
@@ -27,6 +30,7 @@ impl<'a> ExecutionContext<'a> {
             part_to_load,
             resource,
             video,
+            last_rendering: Instant::now(),
         }
     }
 }

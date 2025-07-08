@@ -1,7 +1,8 @@
 use std::{
+    cmp::max,
     io::{self, Seek, SeekFrom},
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use byteorder::{BigEndian, ReadBytesExt};
@@ -290,8 +291,11 @@ impl Vm {
     }
 
     pub fn op_blit_frame_buffer(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
-        let sleep = self.variables[VM_VARIABLE_PAUSE_SLICES] * 20;
-        thread::sleep(Duration::from_millis(sleep as u64));
+        let elapsed = context.last_rendering.elapsed().as_millis();
+        let sleep = self.variables[VM_VARIABLE_PAUSE_SLICES] * 20 - elapsed as i16;
+        thread::sleep(Duration::from_millis(max(0, sleep) as u64));
+        context.last_rendering = Instant::now();
+
         self.variables[0xF7] = 0;
 
         let page_id = PageId::from(context.loaded_part.bytecode.read_u8()?);
