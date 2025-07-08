@@ -9,6 +9,7 @@ use thiserror::Error;
 use crate::{
     renderer::{Renderer, RendererError},
     shapes::{Point, Polygon},
+    text::{FONT, STRING_TABLE},
 };
 
 const HEIGHT: usize = 200;
@@ -156,6 +157,48 @@ impl Video {
         (start..=end).for_each(|i| {
             page[offset + i] |= 0x88;
         });
+    }
+
+    pub fn draw_string(&mut self, color: u8, x: u16, y: u16, string_id: u16) {
+        let mut curr_x = x;
+        let mut curr_y = y;
+        let string = STRING_TABLE[&string_id];
+        for &char in string.iter() {
+            curr_x += 1;
+            if char == b'\x0A' {
+                curr_x = x;
+                curr_y += 8;
+                continue;
+            }
+
+            self.draw_char(char, curr_x, curr_y, color);
+        }
+    }
+
+    fn draw_char(&mut self, char: u8, x: u16, y: u16, color: u8) {
+        let font_offset = ((char - b' ') as u16 * 8) as usize;
+        let video_offset = (x * 4 + y * 160) as usize;
+        for (j, &font_row) in FONT[font_offset..font_offset + 8].iter().enumerate() {
+            let mut font_mask = font_row;
+            for i in 0..4 {
+                let page = &mut self.pages[self.work_buffer];
+                let mut color_pair = 0;
+                let mut pixel_mask = 0xFF;
+                let has_left_pixel = font_mask & 0x80 != 0;
+                let has_right_pixel = font_mask & 0x40 != 0;
+                if has_left_pixel {
+                    color_pair = color << 4;
+                    pixel_mask &= 0x0F;
+                }
+                if has_right_pixel {
+                    color_pair |= color;
+                    pixel_mask &= 0xF0;
+                }
+                page[video_offset + i + j * WIDTH / 2] =
+                    (page[video_offset + i + j * WIDTH / 2] & pixel_mask) | color_pair;
+                font_mask <<= 2;
+            }
+        }
     }
 
     pub fn change_working_buffer(&mut self, page_id: PageId) {

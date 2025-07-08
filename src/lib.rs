@@ -10,5 +10,6 @@ mod renderer;
 mod resource;
 mod shapes;
 mod sys_event_handler;
+mod text;
 mod video;
 mod vm;

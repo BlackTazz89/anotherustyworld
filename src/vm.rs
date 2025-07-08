@@ -322,7 +322,13 @@ impl Vm {
         Ok(())
     }
 
-    pub fn op_draw_string(&mut self, _: &mut ExecutionContext) -> Result<(), VmError> {
+    pub fn op_draw_string(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
+        let bytecode = &mut context.loaded_part.bytecode;
+        let string_id = bytecode.read_u16::<BigEndian>()?;
+        let x = bytecode.read_u8()? as u16;
+        let y = bytecode.read_u8()? as u16;
+        let color = bytecode.read_u8()?;
+        context.video.draw_string(color, x, y, string_id);
         Ok(())
     }
 
