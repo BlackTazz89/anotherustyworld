@@ -7,6 +7,7 @@ use std::{
 
 use byteorder::{BigEndian, ReadBytesExt};
 use log::debug;
+use num_enum::{TryFromPrimitive, TryFromPrimitiveError};
 use rand::random;
 use thiserror::Error;
 
@@ -15,7 +16,8 @@ use crate::{
     execution_context::ExecutionContext,
     loaded::LoadedAsset,
     opcodes::OPCODE_TABLE,
-    resource::ResourceError,
+    parts::GamePart,
+    resource::{NUM_MEM_ENTRIES, ResourceError},
     shapes::Point,
     video::{PageId, PaletteRequest, VideoError},
 };
@@ -31,6 +33,8 @@ pub enum VmError {
     Io(io::Error),
     #[error("Missing polygon segment")]
     MissingPolygonSegment,
+    #[error("Invalid game part {0}")]
+    InvalidGamePart(u16),
     #[error("Stack underflow")]
     StackUnderflow,
     #[error("Video error")]
@@ -54,6 +58,12 @@ impl From<ResourceError> for VmError {
 impl From<VideoError> for VmError {
     fn from(value: VideoError) -> Self {
         VmError::VideoError(value)
+    }
+}
+
+impl From<TryFromPrimitiveError<GamePart>> for VmError {
+    fn from(value: TryFromPrimitiveError<GamePart>) -> Self {
+        VmError::InvalidGamePart(value.number)
     }
 }
 
@@ -342,15 +352,17 @@ impl Vm {
 
     pub fn op_update_mem_list(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
         let resource_id = context.loaded_part.bytecode.read_u16::<BigEndian>()?;
-        if resource_id == 0 {
-            context.loaded_asset = LoadedAsset::default();
-        } else {
-            let asset = context.resource.load_entry(resource_id as usize)?;
-            context
-                .loaded_asset
-                .assets
-                .insert(resource_id as usize, asset);
-        }
+        match resource_id {
+            0 => context.loaded_asset = LoadedAsset::default(),
+            1..NUM_MEM_ENTRIES => {
+                let asset = context.resource.load_entry(resource_id as usize)?;
+                context
+                    .loaded_asset
+                    .assets
+                    .insert(resource_id as usize, asset);
+            }
+            _ => context.part_to_load = Some(GamePart::try_from_primitive(resource_id)?),
+        };
         Ok(())
     }
 

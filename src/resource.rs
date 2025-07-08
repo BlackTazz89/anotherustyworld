@@ -43,6 +43,8 @@ impl From<LoadedPartError> for ResourceError {
     }
 }
 
+pub const NUM_MEM_ENTRIES: u16 = 146;
+
 #[derive(Default)]
 pub struct ResourceRegistry {
     data_dir: PathBuf,
@@ -53,7 +55,7 @@ impl ResourceRegistry {
     pub fn new(data_dir: PathBuf) -> Self {
         Self {
             data_dir,
-            ..Default::default()
+            mem_list: Vec::with_capacity(NUM_MEM_ENTRIES as usize),
         }
     }
 
@@ -62,7 +64,7 @@ impl ResourceRegistry {
         let file = File::open(file_path).map_err(ResourceError::MemListOpen)?;
         let mut reader = BufReader::new(file);
 
-        for _ in 0..=145 {
+        for _ in 0..NUM_MEM_ENTRIES {
             let mem_entry = MemEntry::from_reader(&mut reader)?;
             self.mem_list.push(mem_entry);
         }

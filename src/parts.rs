@@ -10,7 +10,7 @@ pub enum Segment {
     Polygon,
 }
 
-#[derive(Copy, Clone, IntoPrimitive, EnumCount)]
+#[derive(Copy, Clone, IntoPrimitive, TryFromPrimitive, EnumCount)]
 #[repr(u16)]
 pub enum GamePart {
     One = 0x3E80,
@@ -26,7 +26,7 @@ pub enum GamePart {
 }
 
 const NUM_PARTS: usize = GamePart::COUNT;
-pub const SEGMENT_IDX_BY_PART: [[usize; 4]; NUM_PARTS] = [
+pub static SEGMENT_IDX_BY_PART: [[usize; 4]; NUM_PARTS] = [
     [0x14, 0x15, 0x16, 0x00],
     [0x17, 0x18, 0x19, 0x00],
     [0x1A, 0x1B, 0x1C, 0x11],
