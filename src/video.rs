@@ -194,7 +194,7 @@ impl Video {
 
             if bp & 0x8000 != 0 {
                 color = stream.read_u8()? & 0x7F;
-                stream.seek(io::SeekFrom::Start(2))?;
+                stream.seek(io::SeekFrom::Current(1))?;
             }
             let bkp_offset = stream.position();
             stream.set_position((offset * 2) as u64);
