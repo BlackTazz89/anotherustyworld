@@ -178,15 +178,15 @@ impl Video {
         pgc: Point,
     ) -> Result<(), VideoError> {
         let pt = Point {
-            x: pgc.x - stream.read_u8()? as i16 * zoom as i16 / 64,
-            y: pgc.y - stream.read_u8()? as i16 * zoom as i16 / 64,
+            x: pgc.x - (stream.read_u8()? as i32 * zoom as i32 / 64) as i16,
+            y: pgc.y - (stream.read_u8()? as i32 * zoom as i32 / 64) as i16,
         };
         let childs = stream.read_u8()?;
         for _ in 0..=childs {
             let mut offset = stream.read_u16::<BigEndian>()?;
             let po = Point {
-                x: pt.x + stream.read_u8()? as i16 * zoom as i16 / 64,
-                y: pt.y + stream.read_u8()? as i16 * zoom as i16 / 64,
+                x: pt.x + (stream.read_u8()? as i32 * zoom as i32 / 64) as i16,
+                y: pt.y + (stream.read_u8()? as i32 * zoom as i32 / 64) as i16,
             };
             let mut color = 0xFF;
             let bp = offset;
@@ -338,11 +338,7 @@ impl Video {
                     let mut acc: u8 = 0;
                     for bit in 0..8 {
                         acc <<= 1;
-                        acc |= if (planar_palette_idx[bit & 3] & 0x80) != 0 {
-                            1
-                        } else {
-                            0
-                        };
+                        acc |= ((planar_palette_idx[bit & 3] & 0x80) != 0) as u8;
                         planar_palette_idx[bit & 3] <<= 1;
                     }
                     bg_page[h * bytes_per_row + w + byte] = acc;
