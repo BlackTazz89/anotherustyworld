@@ -86,25 +86,20 @@ impl Vm {
     pub fn init_part(&mut self) -> Result<(), VmError> {
         self.variables[0xE4] = 0x14;
         self.channels.iter_mut().for_each(Channel::reset);
-        self.channels[0].pc = ProcessCounter::Valid(0);
+        self.channels[0].set_pc(ProcessCounter::Valid(0));
         Ok(())
     }
 
     pub fn check_channel_requests(&mut self) -> Result<(), VmError> {
         for channel_id in 0..NUM_CHANNELS {
-            let channel = &mut self.channels[channel_id];
-            if let Some(set_vec) = channel.pending_setvec {
-                channel.pc = ProcessCounter::Valid(set_vec);
-                channel.pending_setvec = None;
-            }
+            self.channels[channel_id].apply_next_pc();
         }
-
         Ok(())
     }
 
     pub fn host_frame(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
         for channel_id in 0..NUM_CHANNELS {
-            if self.channels[channel_id].state == State::Dead {
+            if self.channels[channel_id].state != State::Ready {
                 continue;
             }
 
@@ -122,10 +117,6 @@ impl Vm {
         channel_pc: usize,
         context: &mut ExecutionContext,
     ) -> Result<(), VmError> {
-        debug!(
-            "run_channel: invoked. channel_id {} channel_pc {}",
-            channel_id, channel_pc
-        );
         context
             .loaded_part
             .bytecode
@@ -141,18 +132,11 @@ impl Vm {
                 _ => OPCODE_TABLE[opcode as usize](self, context)?,
             };
 
-            if self.channels[channel_id].state == State::Yielding {
-                self.channels[channel_id].state = State::Ready;
-                break;
-            }
-
-            if self.channels[channel_id].state == State::Dead {
-                self.channels[channel_id].pc = ProcessCounter::Invalid;
+            if self.channels[channel_id].state != State::Running {
                 break;
             }
         }
 
-        self.channels[channel_id].pc = context.loaded_part.bytecode.position().into();
         Ok(())
     }
 
@@ -196,9 +180,10 @@ impl Vm {
         Ok(())
     }
 
-    pub fn op_pause_thread(&mut self, _: &mut ExecutionContext) -> Result<(), VmError> {
-        let current_channel = self.running_channel_id;
-        self.channels[current_channel].state = State::Yielding;
+    pub fn op_yield_channel(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
+        let current_channel_id = self.running_channel_id;
+        let execution_pc = context.loaded_part.bytecode.position().into();
+        self.channels[current_channel_id].yield_control(execution_pc);
         Ok(())
     }
 
@@ -209,11 +194,11 @@ impl Vm {
         Ok(())
     }
 
-    pub fn op_set_vec(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
+    pub fn op_set_next_pc(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
         let bytecode = &mut context.loaded_part.bytecode;
         let channel_id = bytecode.read_u8()?;
         let offset = bytecode.read_u16::<BigEndian>()?;
-        self.channels[channel_id as usize].pending_setvec = Some(offset as usize);
+        self.channels[channel_id as usize].next_pc = Some(ProcessCounter::from(offset as u64));
         Ok(())
     }
 
@@ -317,9 +302,9 @@ impl Vm {
         Ok(video.update_display(page_id, palette)?)
     }
 
-    pub fn op_kill_thread(&mut self, _: &mut ExecutionContext) -> Result<(), VmError> {
+    pub fn op_kill_channel(&mut self, _: &mut ExecutionContext) -> Result<(), VmError> {
         let current_channel = self.running_channel_id;
-        self.channels[current_channel].state = State::Dead;
+        self.channels[current_channel].set_pc(ProcessCounter::Invalid);
         Ok(())
     }
 

@@ -17,7 +17,7 @@ impl From<u64> for ProcessCounter {
 pub enum State {
     Ready,
     Running,
-    Yielding,
+    Paused,
     Dead,
 }
 
@@ -25,23 +25,42 @@ pub enum State {
 pub struct Channel {
     pub state: State,
     pub pc: ProcessCounter,
-    pub pending_setvec: Option<usize>,
+    pub next_pc: Option<ProcessCounter>,
 }
 
 impl Default for Channel {
     fn default() -> Self {
         Self {
-            state: State::Ready,
+            state: State::Dead,
             pc: ProcessCounter::Invalid,
-            pending_setvec: None,
+            next_pc: None,
         }
     }
 }
 
 impl Channel {
     pub fn reset(&mut self) {
-        self.state = State::Ready;
+        self.state = State::Dead;
         self.pc = ProcessCounter::Invalid;
-        self.pending_setvec = None;
+        self.next_pc = None;
+    }
+
+    pub fn set_pc(&mut self, pc: ProcessCounter) {
+        self.pc = pc;
+        self.state = match pc {
+            ProcessCounter::Valid(_) => State::Ready,
+            ProcessCounter::Invalid => State::Dead,
+        }
+    }
+
+    pub fn apply_next_pc(&mut self) {
+        if let Some(next_pc) = self.next_pc {
+            self.set_pc(next_pc);
+            self.next_pc = None;
+        };
+    }
+
+    pub fn yield_control(&mut self, execution_pc: ProcessCounter) {
+        self.set_pc(execution_pc);
     }
 }

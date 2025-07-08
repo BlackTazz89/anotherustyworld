@@ -5,16 +5,16 @@ use crate::{
 
 pub type OpcodeHandler = fn(&mut Vm, context: &mut ExecutionContext) -> Result<(), VmError>;
 
-pub const OPCODE_TABLE: &[OpcodeHandler] = &[
+pub static OPCODE_TABLE: &[OpcodeHandler] = &[
     Vm::op_mov_const,
     Vm::op_mov,
     Vm::op_add,
     Vm::op_add_const,
     Vm::op_call,
     Vm::op_ret,
-    Vm::op_pause_thread,
+    Vm::op_yield_channel,
     Vm::op_jmp,
-    Vm::op_set_vec,
+    Vm::op_set_next_pc,
     Vm::op_jnz,
     Vm::op_cond_jmp,
     Vm::op_set_palette,
@@ -23,7 +23,7 @@ pub const OPCODE_TABLE: &[OpcodeHandler] = &[
     Vm::op_fill_video_page,
     Vm::op_copy_video_page,
     Vm::op_blit_frame_buffer,
-    Vm::op_kill_thread,
+    Vm::op_kill_channel,
     Vm::op_draw_string,
     Vm::op_sub,
     Vm::op_and,
