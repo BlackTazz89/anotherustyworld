@@ -159,11 +159,19 @@ impl Vm {
         Ok(())
     }
 
-    pub fn op_mov(&mut self, _: &mut ExecutionContext) -> Result<(), VmError> {
+    pub fn op_mov(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
+        let bytecode = &mut context.loaded_part.bytecode;
+        let dst_variable_id = bytecode.read_u8()? as usize;
+        let src_variable_id = bytecode.read_u8()? as usize;
+        self.variables[dst_variable_id] = self.variables[src_variable_id];
         Ok(())
     }
 
-    pub fn op_add(&mut self, _: &mut ExecutionContext) -> Result<(), VmError> {
+    pub fn op_add(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
+        let bytecode = &mut context.loaded_part.bytecode;
+        let dst_variable_id = bytecode.read_u8()? as usize;
+        let src_variable_id = bytecode.read_u8()? as usize;
+        self.variables[dst_variable_id] += self.variables[src_variable_id];
         Ok(())
     }
 
@@ -171,14 +179,13 @@ impl Vm {
         let bytecode = &mut context.loaded_part.bytecode;
         let variable_id = bytecode.read_u8()? as usize;
         let value = bytecode.read_u16::<BigEndian>()? as i16;
-        self.variables[variable_id] += value;
+        self.variables[variable_id] = self.variables[variable_id].wrapping_add(value);
         Ok(())
     }
 
     pub fn op_call(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
         let bytecode = &mut context.loaded_part.bytecode;
         let offset: u16 = bytecode.read_u16::<BigEndian>()?;
-        debug!("op_call: offset {}", offset);
 
         self.stack.push(bytecode.position());
         bytecode.seek(SeekFrom::Start(offset as u64))?;
@@ -215,9 +222,9 @@ impl Vm {
 
     pub fn op_jnz(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
         let bytecode = &mut context.loaded_part.bytecode;
-        let i = bytecode.read_u8()? as usize;
-        self.variables[i] -= 1;
-        if self.variables[i] != 0 {
+        let variable_id = bytecode.read_u8()? as usize;
+        self.variables[variable_id] -= 1;
+        if self.variables[variable_id] != 0 {
             self.op_jmp(context)?;
         } else {
             bytecode.read_u16::<BigEndian>()?;
@@ -237,8 +244,8 @@ impl Vm {
         };
         let b = self.variables[var as usize];
 
-        let comparation = opcode & 7;
-        let expr = match comparation {
+        let comparison = opcode & 7;
+        let expr = match comparison {
             0 => a == b,
             1 => a != b,
             2 => b > a,
@@ -280,8 +287,6 @@ impl Vm {
 
     pub fn op_select_video_page(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
         let page_id = PageId::from(context.loaded_part.bytecode.read_u8()?);
-        debug!("op_select_video_page: page_id: {:?}", page_id);
-
         context.video.change_working_buffer(page_id);
         Ok(())
     }
@@ -290,10 +295,6 @@ impl Vm {
         let bytecode = &mut context.loaded_part.bytecode;
         let page_id = PageId::from(bytecode.read_u8()?);
         let color = bytecode.read_u8()?;
-        debug!(
-            "op_fill_video_page: page_id: {:?}, color: {:?}",
-            page_id, color
-        );
         context.video.fill_page(page_id, color);
         Ok(())
     }
@@ -319,7 +320,6 @@ impl Vm {
         self.variables[0xF7] = 0;
 
         let page_id = PageId::from(context.loaded_part.bytecode.read_u8()?);
-        debug!("op_blit_frame_buffer: page_id {:?}", page_id);
 
         let video = &mut context.video;
         let palette = &mut context.loaded_part.palette;
@@ -342,27 +342,52 @@ impl Vm {
         Ok(())
     }
 
-    pub fn op_sub(&mut self, _: &mut ExecutionContext) -> Result<(), VmError> {
+    pub fn op_sub(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
+        let bytecode = &mut context.loaded_part.bytecode;
+        let dst_variable_id = bytecode.read_u8()? as usize;
+        let src_variable_id = bytecode.read_u8()? as usize;
+        self.variables[dst_variable_id] -= self.variables[src_variable_id];
         Ok(())
     }
 
-    pub fn op_and(&mut self, _: &mut ExecutionContext) -> Result<(), VmError> {
+    pub fn op_and(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
+        let bytecode = &mut context.loaded_part.bytecode;
+        let variable_id = bytecode.read_u8()? as usize;
+        let value = bytecode.read_u16::<BigEndian>()?;
+        self.variables[variable_id] &= value as i16;
         Ok(())
     }
 
-    pub fn op_or(&mut self, _: &mut ExecutionContext) -> Result<(), VmError> {
+    pub fn op_or(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
+        let bytecode = &mut context.loaded_part.bytecode;
+        let variable_id = bytecode.read_u8()? as usize;
+        let value = bytecode.read_u16::<BigEndian>()?;
+        self.variables[variable_id] |= value as i16;
         Ok(())
     }
 
-    pub fn op_shl(&mut self, _: &mut ExecutionContext) -> Result<(), VmError> {
+    pub fn op_shl(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
+        let bytecode = &mut context.loaded_part.bytecode;
+        let variable_id = bytecode.read_u8()? as usize;
+        let value = bytecode.read_u16::<BigEndian>()?;
+        self.variables[variable_id] <<= value as i16;
         Ok(())
     }
 
-    pub fn op_shr(&mut self, _: &mut ExecutionContext) -> Result<(), VmError> {
+    pub fn op_shr(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
+        let bytecode = &mut context.loaded_part.bytecode;
+        let variable_id = bytecode.read_u8()? as usize;
+        let value = bytecode.read_u16::<BigEndian>()?;
+        self.variables[variable_id] >>= value as i16;
         Ok(())
     }
 
-    pub fn op_play_sound(&mut self, _: &mut ExecutionContext) -> Result<(), VmError> {
+    pub fn op_play_sound(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
+        let bytecode = &mut context.loaded_part.bytecode;
+        let resource_id = bytecode.read_u16::<BigEndian>()?;
+        let freq = bytecode.read_u8()?;
+        let vol = bytecode.read_u8()?;
+        let channel = bytecode.read_u8()?;
         Ok(())
     }
 
@@ -384,8 +409,9 @@ impl Vm {
 
     pub fn op_play_music(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
         let bytecode = &mut context.loaded_part.bytecode;
-        bytecode.read_u32::<BigEndian>()?;
-        bytecode.read_u8()?;
+        let resource_id = bytecode.read_u16::<BigEndian>()?;
+        let delay = bytecode.read_u16::<BigEndian>()?;
+        let offset = bytecode.read_u8()?;
         Ok(())
     }
 
