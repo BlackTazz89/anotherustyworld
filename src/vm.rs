@@ -264,7 +264,17 @@ impl Vm {
         Ok(())
     }
 
-    pub fn op_reset_threads(&mut self, _: &mut ExecutionContext) -> Result<(), VmError> {
+    pub fn op_reset_threads(&mut self, context: &mut ExecutionContext) -> Result<(), VmError> {
+        let bytecode = &mut context.loaded_part.bytecode;
+        let from = bytecode.read_u8()? as usize;
+        let to = bytecode.read_u8()? as usize;
+        let operation_id = bytecode.read_u8()?;
+        let operation: fn(&mut Channel) = match operation_id {
+            0 => |channel| channel.state = State::Ready,
+            1 => |channel| channel.state = State::Paused,
+            _ => |channel| channel.next_pc = Some(ProcessCounter::Invalid),
+        };
+        self.channels[from..=to].iter_mut().for_each(operation);
         Ok(())
     }
 
